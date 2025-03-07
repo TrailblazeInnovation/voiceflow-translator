@@ -1,0 +1,107 @@
+<script type="text/javascript">
+  (function(d, t) {
+    var v = d.createElement(t), s = d.getElementsByTagName(t)[0];
+
+    v.onload = function() {
+      // 1. Detect Browser Language
+      const userLanguage = navigator.language || navigator.userLanguage; // Get browser language (e.g., "en-US", "fr-FR")
+
+      // 2. Define proactive messages (in English as a fallback)
+      const proactiveMessages = [
+          { type: 'text', payload: { message: 'Are you interested in some 🔥🔥🔥 sneakers?' } },
+          { type: 'text', payload: { message: 'Click on the chat to learn more!' } }
+      ];
+
+      // 3.  Async function to handle translation and Voiceflow setup
+      async function setupVoiceflow() {
+        try {
+          // 4. Translate messages using Google Cloud Translation
+          const translatedMessages = await Promise.all(proactiveMessages.map(async (msg) => {
+            const translatedText = await translateText(msg.payload.message, userLanguage);
+            return { ...msg, payload: { message: translatedText } }; // Create a new message object with translated text
+          }));
+
+          // 5. Now load Voiceflow with the *translated* messages
+          import('https://trailblazeinnovation.github.io/TrailBlaze-Innovation/trailblazeextensions.js')
+          .then(({ BrowserDataExtension }) => {
+            window.voiceflow.chat.load({
+              verify: { projectID: '67b0edda71f7230a7427ad57' },
+              url: 'https://general-runtime.voiceflow.com',
+              versionID: 'production',
+              assistant: {
+                persistence: 'memory',
+                extensions: [BrowserDataExtension],
+              },
+            }).then(() => {
+              window.voiceflow.chat.proactive.clear(); // Clear previous proactive messages
+              window.voiceflow.chat.proactive.push(...translatedMessages); // Push the TRANSLATED messages
+            });
+          });
+
+        } catch (error) {
+          console.error("Error during translation or Voiceflow setup:", error);
+          // Handle errors gracefully (e.g., fallback to English messages)
+
+          // Fallback: load with original English messages if translation fails
+          import('https://trailblazeinnovation.github.io/TrailBlaze-Innovation/trailblazeextensions.js')
+          .then(({ BrowserDataExtension }) => {
+            window.voiceflow.chat.load({
+              verify: { projectID: '67b0edda71f7230a7427ad57' },
+              url: 'https://general-runtime.voiceflow.com',
+              versionID: 'production',
+              assistant: {
+                persistence: 'memory',
+                extensions: [BrowserDataExtension],
+              },
+            }).then(() => {
+              window.voiceflow.chat.proactive.clear(); // Clear previous proactive messages
+              window.voiceflow.chat.proactive.push(...proactiveMessages); // Push the ORIGINAL messages
+            });
+          });
+        }
+      }
+
+        // 6.  Call the async function
+        setupVoiceflow();
+    };
+
+    v.src = "https://cdn.voiceflow.com/widget-next/bundle.mjs";
+    v.type = "text/javascript";
+    s.parentNode.insertBefore(v, s);
+  })(document, 'script');
+
+  // 7. Google Cloud Translation Function (using the Node.js client library)
+  async function translateText(text, targetLanguage) {
+    // Imports the Google Cloud Translation library (Node.js style - works in modern browsers)
+    const { TranslationServiceClient } = await import('@google-cloud/translate');
+
+    // Instantiates a client
+    const translationClient = new TranslationServiceClient();
+
+    // Construct request
+    const request = {
+      parent: `projects/YOUR_GOOGLE_CLOUD_PROJECT_ID/locations/global`, // Replace with your project ID
+      contents: [text],
+      mimeType: 'text/plain', // Assuming plain text
+      sourceLanguageCode: 'en', // Source language is English
+      targetLanguageCode: targetLanguage,
+    };
+
+      try{
+          // Run request
+          const [response] = await translationClient.translateText(request);
+          //console.log("response",response); //debugging
+          if (response.translations && response.translations.length > 0) {
+            return response.translations[0].translatedText;
+          } else {
+            console.warn("No translation found, returning original text.");
+            return text; // Return original if no translation
+          }
+
+      } catch (error){
+          console.error("error during translation", error)
+          return text;
+      }
+  }
+
+</script>
